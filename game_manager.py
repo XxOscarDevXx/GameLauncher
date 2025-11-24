@@ -3,6 +3,8 @@ import os
 import time
 from icon_extractor import extract_icon
 
+from metadata_fetcher import fetch_metadata
+
 class GameManager:
     def __init__(self, data_file="games.json", icons_dir="icons"):
         self.data_file = data_file
@@ -17,13 +19,20 @@ class GameManager:
             try:
                 with open(self.data_file, "r") as f:
                     games = json.load(f)
-                    # Ensure all fields exist for backward compatibility
+                    valid_games = []
+                    # Ensure all fields exist for backward compatibility and filter invalid ones
                     for game in games:
+                        if "name" not in game or "path" not in game:
+                            continue # Skip invalid entries
+                            
                         game.setdefault("favorite", False)
                         game.setdefault("play_time", 0)
                         game.setdefault("description", "")
                         game.setdefault("last_played", None)
-                    return games
+                        game.setdefault("categories", [])
+                        game.setdefault("launch_args", "")
+                        valid_games.append(game)
+                    return valid_games
             except json.JSONDecodeError:
                 return []
         return []
@@ -35,14 +44,13 @@ class GameManager:
     def add_game(self, file_path):
         if not os.path.exists(file_path):
             return False, "File does not exist."
-
-        name = os.path.splitext(os.path.basename(file_path))[0]
         
-        # Check if game already exists
+        # Check if already exists
         for game in self.games:
             if game["path"] == file_path:
                 return False, "Game already added."
-
+        
+        name = os.path.splitext(os.path.basename(file_path))[0]
         icon_filename = f"{name}.png"
         icon_path = os.path.join(self.icons_dir, icon_filename)
         
@@ -51,6 +59,17 @@ class GameManager:
         if not extracted_path:
              print(f"Warning: Could not extract icon for {name}")
              icon_path = None
+        
+        # Auto-fetch metadata
+        description = ""
+        categories = []
+        try:
+            metadata = fetch_metadata(name)
+            if metadata:
+                description = metadata.get("description", "")
+                categories = metadata.get("genres", [])
+        except Exception as e:
+            print(f"Error auto-fetching metadata: {e}")
 
         game_data = {
             "name": name,
@@ -58,8 +77,9 @@ class GameManager:
             "icon": icon_path,
             "favorite": False,
             "play_time": 0,
-            "description": "",
-            "last_played": None
+            "description": description,
+            "last_played": None,
+            "categories": categories
         }
         
         self.games.append(game_data)
@@ -67,12 +87,13 @@ class GameManager:
         return True, "Game added successfully."
 
     def get_games(self):
-        # Sort: Favorites first, then alphabetical
-        return sorted(self.games, key=lambda x: (not x.get("favorite", False), x["name"].lower()))
+        # Filter out invalid games (missing name) and Sort: Favorites first, then alphabetical
+        valid_games = [g for g in self.games if "name" in g and g["name"]]
+        return sorted(valid_games, key=lambda x: (not x.get("favorite", False), x["name"].lower()))
 
     def remove_game(self, index):
         if 0 <= index < len(self.games):
-            self.games.pop(index)
+            del self.games[index]
             self.save_games()
             return True
         return False
@@ -95,13 +116,24 @@ class GameManager:
                 return True
         return False
 
-    def update_metadata(self, path, name, description, icon_path=None):
+    def update_metadata(self, path, name, description, icon_path=None, categories=None, launch_args=None):
         for game in self.games:
             if game["path"] == path:
                 game["name"] = name
                 game["description"] = description
                 if icon_path:
                     game["icon"] = icon_path
+                if categories is not None:
+                    game["categories"] = categories
+                if launch_args is not None:
+                    game["launch_args"] = launch_args
                 self.save_games()
                 return True
         return False
+
+    def get_categories(self):
+        categories = set()
+        for game in self.games:
+            for cat in game.get("categories", []):
+                categories.add(cat)
+        return sorted(list(categories))

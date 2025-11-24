@@ -25,9 +25,15 @@ def fetch_metadata(game_name):
                 
             if details_data and str(app_id) in details_data and details_data[str(app_id)]["success"]:
                 game_info = details_data[str(app_id)]["data"]
+                
+                genres = []
+                if "genres" in game_info:
+                    genres = [g["description"] for g in game_info["genres"]]
+                    
                 return {
                     "description": game_info.get("short_description", ""),
-                    "image_url": game_info.get("header_image", "")
+                    "image_url": game_info.get("header_image", ""),
+                    "genres": genres
                 }
                 
         return None

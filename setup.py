@@ -8,10 +8,12 @@ ctk_path = os.path.dirname(customtkinter.__file__)
 
 # Dependencies are automatically detected, but it might need fine tuning.
 build_exe_options = {
-    "packages": ["os", "sys", "customtkinter", "PIL", "threading", "time", "subprocess", "json", "urllib"],
+    "packages": ["os", "sys", "customtkinter", "PIL", "threading", "time", "subprocess", "json", "urllib", "pystray", "pygame", "paho.mqtt"],
     "include_files": [
         (ctk_path, "customtkinter"),
-        ("icons", "icons")
+        ("icons", "icons"),
+        ("themes", "themes"),
+        ("sounds", "sounds")
     ],
     "excludes": []
 }
@@ -61,11 +63,11 @@ if sys.platform == "win32":
 
 setup(
     name="GameLauncher",
-    version="1.1", # Bump version to force upgrade behavior if needed
+    version="3.0", # Bump version to force upgrade behavior if needed
     description="Elegant Game Launcher",
     options={
         "build_exe": build_exe_options,
         "bdist_msi": bdist_msi_options
     },
-    executables=[Executable("app.py", base=base, target_name="GameLauncher.exe", icon="icons/settings.png")]
+    executables=[Executable("app.py", base=base, target_name="GameLauncher.exe", icon="icons/app_icon.ico")]
 )
